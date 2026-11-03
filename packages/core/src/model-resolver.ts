@@ -343,7 +343,7 @@ function validateProviderVariables(
   model: RuntimeInfo,
   resolved: AIModel<"chat">,
 ): Effect.Effect<AIModel<"chat">, UnresolvedProviderVariablesError> {
-  const baseURL = resolved.route.endpoint.baseURL
+  const baseURL = resolved.baseURL
   if (typeof baseURL !== "string") return Effect.succeed(resolved)
   const failure = unresolvedProviderVariables(model, baseURL)
   return failure ? Effect.fail(failure) : Effect.succeed(resolved)
@@ -478,7 +478,7 @@ export const layer = Layer.effect(
         credential === undefined &&
         !hasConfiguredAuth(runtimeInfo) &&
         usesAPIKeyAuth(runtimeInfo.package)
-          ? AIModel.with(model, { route: model.route.with({ auth: Auth.none }) })
+          ? AIModel.with(model, { auth: Auth.none })
           : model
       return {
         model: runtime,

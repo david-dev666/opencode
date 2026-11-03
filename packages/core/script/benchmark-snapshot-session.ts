@@ -91,7 +91,7 @@ const snapshotLayer = (data: string) =>
 const files = (await $`git ls-files -z -- '*.ts'`.cwd(directory).text()).split("\0").filter(Boolean).slice(0, 50)
 
 const model = SessionRunnerModel.resolved(
-  Model.make({ type: "chat", id: "bench-model", provider: "test", route: OpenAIChat.route }),
+  Model.make({ type: "chat", id: "bench-model", provider: "test", api: OpenAIChat.route }),
   {
     capabilities: { tools: true, input: ["text"], output: ["text"] },
     limit: { context: 100_000, output: 1_000 },

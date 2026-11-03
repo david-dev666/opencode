@@ -7,6 +7,7 @@ import {
   type ModelOptions,
   type ProviderOptions,
 } from "./options.js"
+import type { Auth } from "../route/auth.js"
 import type { AnyRoute, CompactionOperations } from "../route/client.js"
 import type { DecisionCompatibility, DecisionModelRoute } from "../decision.js"
 import type { ImageRoute } from "../image.js"
@@ -42,51 +43,75 @@ export class Model<
   Options extends ProviderOptions = ProviderOptions,
   C extends Compact = Compact,
 > {
-  // The route is erased over `Options`; constructors trust that it accepts every request this model's `Options` admit.
+  // The API is erased over `Options`; constructors trust that it accepts every request this model's `Options` admit.
   declare protected readonly _ProviderOptions: Options
   readonly id: ModelID
   readonly provider: ProviderID
   readonly type: Type
-  readonly route: Model.Route<Type, C>
+  /** How requests are built and sent. Text APIs may carry a default `baseURL` and `auth`, which the fields below override. */
+  readonly api: Model.Api<Type, C>
+  /** Text models only: where requests go. */
+  readonly baseURL?: string
+  /** Text models only: how requests authenticate. */
+  readonly auth?: Auth.Definition
   readonly options?: ModelOptions
   readonly capabilities?: ModelCapabilities
   readonly limit?: ModelLimit
   readonly modalities?: ModelModalities
   readonly compatibility?: Model.Compatibility<Type>
+  /** @internal The API deployed at `baseURL` with `auth`; what the clients run. */
+  readonly route: Model.Api<Type, C>
 
-  private constructor(input: Model.Fields<Type, C>) {
+  private constructor(input: Model.Fields<Type, C>, route: Model.Api<Type, C>) {
     this.id = input.id
     this.provider = input.provider
     this.type = input.type
-    this.route = input.route
+    this.api = input.api
+    this.baseURL = input.baseURL
+    this.auth = input.auth
     this.options = input.options
     this.capabilities = input.capabilities
     this.limit = input.limit
     this.modalities = input.modalities
     this.compatibility = input.compatibility
+    this.route = route
   }
 
   static make<Type extends ModelType, Options extends ProviderOptions = ProviderOptions, C extends Compact = Compact>(
     input: Model.Input<Type, C>,
   ): Model<Type, Options, C> {
-    // A text route's options are a preset under the model's own.
-    const preset = "options" in input.route ? (input.route.options as ModelOptions | undefined) : undefined
-    return new Model<Type, Options, C>({
-      ...input,
+    const fields = {
       id: ModelID.make(input.id),
       provider: ProviderID.make(input.provider),
-      options: mergeModelOptions(preset, input.options),
-    })
+      type: input.type,
+      api: input.api,
+      options: input.options,
+      capabilities: input.capabilities,
+      limit: input.limit,
+      modalities: input.modalities,
+      compatibility: input.compatibility,
+    }
+    if (input.type !== "chat") return new Model<Type, Options, C>(fields, input.api)
+    const api = input.api as AnyRoute<C>
+    const baseURL = input.baseURL ?? api.endpoint.baseURL
+    const auth = input.auth ?? api.auth
+    const route =
+      baseURL === api.endpoint.baseURL && auth === api.auth ? api : api.with({ endpoint: { baseURL }, auth })
+    return new Model<Type, Options, C>(
+      // The API's options are a preset under the model's own.
+      { ...fields, baseURL, auth, options: mergeModelOptions(api.options, input.options) },
+      route as Model.Api<Type, C>,
+    )
   }
 
-  /** A copy with `patch` applied; fields `patch` leaves out are kept. */
+  /** A copy with `patch` applied; fields `patch` leaves out are kept. A new `api` brings its own `baseURL` and `auth`. */
   static with<Options extends ProviderOptions, Next extends Compact>(
     model: Model<"chat", Options>,
-    patch: Partial<Model.Input<"chat", Next>> & { readonly route: AnyRoute<Next> },
+    patch: Partial<Model.Input<"chat", Next>> & { readonly api: AnyRoute<Next> },
   ): Model<"chat", Options, Next>
   static with<Type extends ModelType, Options extends ProviderOptions, C extends Compact>(
     model: Model<Type, Options, C>,
-    patch: Partial<Omit<Model.Input<Type, C>, "route">> & { readonly route?: undefined },
+    patch: Partial<Omit<Model.Input<Type, C>, "api">> & { readonly api?: undefined },
   ): Model<Type, Options, C>
   static with<Type extends ModelType, Options extends ProviderOptions>(
     model: Model<Type, Options>,
@@ -97,7 +122,8 @@ export class Model<
     patch: Partial<Model.Input<Type>>,
   ) {
     if (Object.keys(patch).length === 0) return model
-    return Model.make<Type, Options>({ ...model, ...patch, route: patch.route ?? model.route })
+    const base = patch.api === undefined ? model : { ...model, baseURL: undefined, auth: undefined }
+    return Model.make<Type, Options>({ ...base, ...patch, api: patch.api ?? model.api })
   }
 
   /** Whether `value` is a model of the given type. */
@@ -112,7 +138,7 @@ export class Model<
 }
 
 export namespace Model {
-  interface Routes<C extends Compact> {
+  interface Apis<C extends Compact> {
     readonly chat: AnyRoute<C>
     readonly image: ImageRoute
     readonly speech: SpeechRoute
@@ -127,7 +153,7 @@ export namespace Model {
     readonly decision: DecisionCompatibility
   }
 
-  export type Route<Type extends ModelType, C extends Compact = Compact> = Routes<C>[Type]
+  export type Api<Type extends ModelType, C extends Compact = Compact> = Apis<C>[Type]
 
   /** Wire quirks of the model's API. Only text and decision APIs have any. */
   export type Compatibility<Type extends ModelType> = Type extends keyof Compatibilities ? Compatibilities[Type] : never
@@ -136,7 +162,9 @@ export namespace Model {
     readonly id: ModelID
     readonly provider: ProviderID
     readonly type: Type
-    readonly route: Route<Type, C>
+    readonly api: Api<Type, C>
+    readonly baseURL?: string
+    readonly auth?: Auth.Definition
     readonly options?: ModelOptions
     readonly capabilities?: ModelCapabilities
     readonly limit?: ModelLimit
