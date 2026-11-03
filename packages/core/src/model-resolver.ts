@@ -253,10 +253,10 @@ const resolveCatalogModel = Effect.fn("ModelResolver.resolveCatalogModel")(funct
         compatibility: resolved.compatibility
           ? Object.assign({}, runtime.compatibility, Struct.omit(resolved.compatibility, CAPABILITY_KEYS))
           : runtime.compatibility,
-        // Timeouts and body encoding are transport policy, so they land on the route's HTTP defaults instead of package settings.
-        defaults: {
-          ...runtime.defaults,
-          ...mergeTransport(runtime.defaults, {
+        // Timeouts and body encoding are transport policy, so they land on the model's options instead of package settings.
+        options: {
+          ...runtime.options,
+          ...mergeTransport(runtime.options, {
             timeout: { total: timeouts.timeout, headers: timeouts.headerTimeout, chunk: timeouts.chunkTimeout },
             http: { encoding: Provider.encoding(configured) },
           }),
@@ -381,7 +381,8 @@ function prepareProviderURL(
   const prepared = baseURL.replace(
     /\$\{([^}]+)\}/g,
     (placeholder, name: string) =>
-      (name === "AWS_REGION" && typeof settings.region === "string" ? settings.region : process.env[name]) ?? placeholder,
+      (name === "AWS_REGION" && typeof settings.region === "string" ? settings.region : process.env[name]) ??
+      placeholder,
   )
   const failure = unresolvedProviderVariables(model, prepared)
   return failure ? Effect.fail(failure) : Effect.succeed(prepared)

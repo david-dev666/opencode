@@ -3,17 +3,17 @@ import { ZAIChat } from "../protocols/zai-chat.js"
 import { ZAIImages } from "../protocols/zai-images.js"
 import { OpenAIChat } from "../protocols/openai-chat.js"
 import type { ProviderAuthOption } from "../route/auth-options.js"
-import { Route, type RouteDefaultsInput } from "../route/client.js"
+import { Route } from "../route/client.js"
 import { Endpoint } from "../route/endpoint.js"
 import { MediaRoute } from "../route/media.js"
-import { ProviderID, type ModelID, type ProviderOptions } from "../schema/index.js"
+import { ProviderID, type ModelID, type ProviderOptions, type ModelOptions } from "../schema/index.js"
 import { bearerRouteDefaults, toConfig } from "./settings.js"
 
 export const id = ProviderID.make("zai")
 
 export type ChatOptionsInput = ZAIChat.OptionsInput
 
-export type Config = Omit<RouteDefaultsInput, "providerOptions"> &
+export type Config = Omit<ModelOptions, "providerOptions"> &
   ProviderAuthOption<"optional"> & {
     readonly baseURL?: string
     readonly providerOptions?: ChatOptionsInput

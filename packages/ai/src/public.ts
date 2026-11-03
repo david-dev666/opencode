@@ -93,7 +93,7 @@ export type {
   ContentPartInput,
   GenerationOptionsFields,
   HttpOptions,
-  LanguageModelDefaults,
+  ModelOptions,
   LanguageModelInput,
   LanguageModelProviderOptions,
   LLMRequest,
