@@ -198,22 +198,12 @@ export class LanguageModelCompatibility extends Schema.Class<LanguageModelCompat
   maxTokensField: Schema.optional(LanguageModelMaxTokensFieldCompatibility),
   requireFinishReason: Schema.optional(Schema.Boolean),
   requireAssistantAfterTool: Schema.optional(Schema.Boolean),
-  supportsStore: Schema.optional(Schema.Boolean),
-  /** Request usage in the stream with `stream_options.include_usage`. Defaults to true. */
-  streamUsage: Schema.optional(Schema.Boolean),
-  supportsStrictMode: Schema.optional(Schema.Boolean),
-  // Accepts `prompt_cache_key` in the request body. Chat omits the key unless
-  // this is true; other protocols omit it only when this is false.
-  // Session-affinity headers still flow regardless.
-  supportsPromptCacheKey: Schema.optional(Schema.Boolean),
   /** Prompt-cache marker syntax the endpoint accepts. Overrides the route default; both send `cache_control`, and `alibaba` skips tool definitions. */
   cacheFormat: Schema.optional(LanguageModelCacheFormatCompatibility),
   zaiToolStream: Schema.optional(Schema.Boolean),
   requireSignature: Schema.optional(Schema.Boolean),
   /** Supports Anthropic's thinking-prefix mismatch controls. Overrides model-ID detection. */
   supportsThinkingBlockBinding: Schema.optional(Schema.Boolean),
-  /** Supports per-message effort updates. Overrides model-ID detection. */
-  supportsEffortUpdates: Schema.optional(Schema.Boolean),
 }) {}
 
 export namespace LanguageModelCompatibility {
@@ -222,6 +212,24 @@ export namespace LanguageModelCompatibility {
   /** Normalize model/upstream compatibility metadata without projecting requests. */
   export const make = (input: Input) =>
     input instanceof LanguageModelCompatibility ? input : new LanguageModelCompatibility(input)
+}
+
+/** What the endpoint accepts for this model, named after models.dev capabilities. Unset keeps the protocol default. */
+export interface ModelCapabilities {
+  /** Accepts `store`. OpenAI Chat detects it from the provider when unset. */
+  readonly store?: boolean
+  /** Accepts `stream_options.include_usage`. OpenAI Chat defaults to true. */
+  readonly streamUsage?: boolean
+  // Accepts `prompt_cache_key` in the request body. Chat omits the key unless
+  // this is true; other protocols omit it only when this is false.
+  // Session-affinity headers still flow regardless.
+  readonly promptCacheKey?: boolean
+  /** Accepts per-message effort updates. Overrides model-ID detection. */
+  readonly effortUpdates?: boolean
+  readonly tools?: {
+    /** Accepts `strict` on function tools. OpenAI Chat detects it from the provider when unset. */
+    readonly strict?: boolean
+  }
 }
 
 export class LanguageModel<
@@ -233,6 +241,7 @@ export class LanguageModel<
   readonly provider: ProviderID
   readonly route: AnyRoute<Compact>
   readonly defaults?: LanguageModelDefaults
+  readonly capabilities?: ModelCapabilities
   readonly compatibility?: LanguageModelCompatibility
 
   constructor(input: LanguageModel.ConstructorInput<Compact>) {
@@ -240,6 +249,7 @@ export class LanguageModel<
     this.provider = input.provider
     this.route = input.route
     this.defaults = input.defaults
+    this.capabilities = input.capabilities
     this.compatibility = input.compatibility
   }
 
@@ -252,6 +262,7 @@ export class LanguageModel<
       provider: ProviderID.make(input.provider),
       route: input.route,
       defaults: input.defaults,
+      capabilities: input.capabilities,
       compatibility:
         input.compatibility === undefined ? undefined : LanguageModelCompatibility.make(input.compatibility),
     })
@@ -265,6 +276,7 @@ export class LanguageModel<
       provider: model.provider,
       route: model.route,
       defaults: model.defaults,
+      capabilities: model.capabilities,
       compatibility: model.compatibility,
     }
   }
@@ -297,6 +309,7 @@ export namespace LanguageModel {
     readonly provider: ProviderID
     readonly route: AnyRoute<Compact>
     readonly defaults?: LanguageModelDefaults
+    readonly capabilities?: ModelCapabilities
     readonly compatibility?: LanguageModelCompatibility
   }
 

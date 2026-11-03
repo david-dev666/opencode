@@ -16,7 +16,7 @@ import { Context, Effect, Layer, Schema, Struct } from "effect"
 import { AISDK } from "./aisdk.js"
 import { Credential } from "./credential.js"
 import { Integration } from "./integration.js"
-import { Capabilities, ID, Info, Model, Ref, VariantID } from "./model.js"
+import { Capabilities, Compatibility, ID, Info, Model, Ref, VariantID } from "./model.js"
 import type { RuntimeInfo } from "./model.js"
 import { Npm } from "@opencode/util/npm"
 import { Provider } from "./provider.js"
@@ -247,8 +247,11 @@ const resolveCatalogModel = Effect.fn("ModelResolver.resolveCatalogModel")(funct
       const timeouts = Provider.timeouts(configured)
       return LanguageModel.update(runtime, {
         provider: resolved.canonical ?? resolved.providerID,
+        capabilities: resolved.compatibility
+          ? Object.assign({}, runtime.capabilities, capabilities(resolved.compatibility))
+          : runtime.capabilities,
         compatibility: resolved.compatibility
-          ? Object.assign({}, runtime.compatibility, resolved.compatibility)
+          ? Object.assign({}, runtime.compatibility, Struct.omit(resolved.compatibility, CAPABILITY_KEYS))
           : runtime.compatibility,
         // Timeouts and body encoding are transport policy, so they land on the route's HTTP defaults instead of package settings.
         defaults: {
@@ -263,6 +266,19 @@ const resolveCatalogModel = Effect.fn("ModelResolver.resolveCatalogModel")(funct
     catch: (cause) => constructionError(resolved, cause),
   })
 })
+
+// Config `compatibility` keys the AI package reads as model capabilities, by AI capability name.
+const CAPABILITIES = {
+  supportsPromptCacheKey: "promptCacheKey",
+  streamUsage: "streamUsage",
+  supportsEffortUpdates: "effortUpdates",
+} as const
+const CAPABILITY_KEYS = Object.keys(CAPABILITIES) as (keyof typeof CAPABILITIES)[]
+
+const capabilities = (compatibility: Compatibility) =>
+  Object.fromEntries(
+    CAPABILITY_KEYS.filter((key) => key in compatibility).map((key) => [CAPABILITIES[key], compatibility[key]]),
+  )
 
 /** Settings and package loading shared by every model type: credentials, variables, canonical provider, overlays. */
 const loadCatalogPackage = Effect.fn("ModelResolver.loadCatalogPackage")(function* (

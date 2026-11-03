@@ -921,7 +921,7 @@ const isThinkingOff = Schema.is(AnthropicThinkingDisabled)
 // Per-turn effort started with Claude Opus 5 and every Claude 5.1 model; later versions of any family inherit it.
 const supportsEffortUpdates = (request: LLMRequest) => {
   if (isThinkingOff(request.providerOptions?.thinking)) return false
-  const override = request.model.compatibility?.supportsEffortUpdates
+  const override = request.model.capabilities?.effortUpdates
   if (override !== undefined) return override
   const version = claudeVersion(request.model.id)
   if (version === undefined) return false
