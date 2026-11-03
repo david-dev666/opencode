@@ -3,7 +3,7 @@ import {
   DecisionResponse,
   DecisionUsage,
   type DecisionAnswer,
-  type DecisionModelCompatibility,
+  type DecisionCompatibility,
   type DecisionPart,
   type DecisionQuestion,
   type DecisionRequest,
@@ -21,7 +21,7 @@ export const DEFAULT_PATH = "/systemone"
 export const DEFAULT_BASE_URL = "https://api.typesafe.ai/v1"
 
 /** `state.messages` is Baseten's own placement (parts in a user message inside `state.messages`), set by its provider. */
-type MediaInput = NonNullable<DecisionModelCompatibility["mediaInput"]> | "state.messages"
+type MediaInput = NonNullable<DecisionCompatibility["mediaInput"]> | "state.messages"
 
 const Probability = Schema.Number.check(Schema.isBetween({ minimum: 0, maximum: 1 }))
 const Answer = Schema.Union([

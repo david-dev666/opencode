@@ -41,13 +41,11 @@ export const routes = [chatRoute]
 export const configure = (input: Config = {}) => {
   const defaults = bearerRouteDefaults(input, "ZAI_API_KEY")
   const chat = (modelID: string | ModelID) =>
-    chatRoute
-      .with(defaults)
-      .model<ChatOptionsInput>({
-        id: modelID,
-        compatibility: ZAIChat.compatibility,
-        capabilities: ZAIChat.capabilities,
-      })
+    chatRoute.with(defaults).model<ChatOptionsInput>({
+      id: modelID,
+      compatibility: ZAIChat.compatibility,
+      capabilities: ZAIChat.capabilities,
+    })
   const media = MediaRoute.deployment(input, defaults.auth)
   const image = (modelID: string | ModelID, providerOptions?: ProviderOptions) =>
     ZAIImages.model({ ...media, id: modelID, providerOptions })

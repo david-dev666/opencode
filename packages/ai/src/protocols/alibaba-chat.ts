@@ -1,6 +1,6 @@
 import { Effect, Schema } from "effect"
 import { Protocol } from "../route/protocol.js"
-import type { LanguageModelCompatibility, ModelCapabilities } from "../schema/index.js"
+import type { ChatCompatibility, ModelCapabilities } from "../schema/index.js"
 import { OpenAIChat } from "./openai-chat.js"
 import { JsonObject, ProviderShared } from "./shared.js"
 import { cacheControl } from "./utils/cache.js"
@@ -43,7 +43,7 @@ export const compatibility = {
   maxTokensField: "max_completion_tokens",
   reasoningField: "reasoning_content",
   zaiToolStream: false,
-} satisfies LanguageModelCompatibility
+} satisfies ChatCompatibility
 
 export const capabilities = { tools: { strict: false } } satisfies ModelCapabilities
 

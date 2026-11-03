@@ -52,13 +52,11 @@ export const configure = (input: Config = {}) => {
     auth: AuthOptions.bearer(input, "VENICE_API_KEY"),
   }
   const chat = (modelID: string | ModelID) =>
-    route
-      .with(options)
-      .model<ChatOptionsInput>({
-        id: modelID,
-        compatibility: VeniceChat.compatibility,
-        capabilities: VeniceChat.capabilities,
-      })
+    route.with(options).model<ChatOptionsInput>({
+      id: modelID,
+      compatibility: VeniceChat.compatibility,
+      capabilities: VeniceChat.capabilities,
+    })
   const responses = (modelID: string | ModelID) =>
     responsesRoute.with(options).model<OpenResponsesProviderOptionsInput>({ id: modelID })
   return { id, model: chat, chat, responses, configure }

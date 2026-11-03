@@ -1,6 +1,4 @@
 import { Schema } from "effect"
-import { ModelID, ProviderID } from "./ids.js"
-import type { AnyRoute, CompactionOperations } from "../route/client.js"
 import { isRecord } from "../utils/record.js"
 
 export const JsonSchema = Schema.Record(Schema.String, Schema.Unknown)
@@ -198,30 +196,21 @@ export type LanguageModelMaxTokensFieldCompatibility = Schema.Schema.Type<
 export const LanguageModelCacheFormatCompatibility = Schema.Literals(["anthropic", "alibaba"])
 export type LanguageModelCacheFormatCompatibility = Schema.Schema.Type<typeof LanguageModelCacheFormatCompatibility>
 
-export class LanguageModelCompatibility extends Schema.Class<LanguageModelCompatibility>(
-  "LLM.LanguageModelCompatibility",
-)({
-  sanitizer: Schema.optional(LanguageModelSanitizerCompatibility),
-  reasoningField: Schema.optional(Schema.String),
+/** Wire quirks of a text API, beyond what the protocol detects. */
+export interface ChatCompatibility {
+  readonly sanitizer?: LanguageModelSanitizerCompatibility
+  readonly reasoningField?: string
   /** Require every assistant message to include its reasoning field, even when empty. */
-  requireReasoning: Schema.optional(Schema.Boolean),
-  maxTokensField: Schema.optional(LanguageModelMaxTokensFieldCompatibility),
-  requireFinishReason: Schema.optional(Schema.Boolean),
-  requireAssistantAfterTool: Schema.optional(Schema.Boolean),
+  readonly requireReasoning?: boolean
+  readonly maxTokensField?: LanguageModelMaxTokensFieldCompatibility
+  readonly requireFinishReason?: boolean
+  readonly requireAssistantAfterTool?: boolean
   /** Prompt-cache marker syntax the endpoint accepts. Overrides the route default; both send `cache_control`, and `alibaba` skips tool definitions. */
-  cacheFormat: Schema.optional(LanguageModelCacheFormatCompatibility),
-  zaiToolStream: Schema.optional(Schema.Boolean),
-  requireSignature: Schema.optional(Schema.Boolean),
+  readonly cacheFormat?: LanguageModelCacheFormatCompatibility
+  readonly zaiToolStream?: boolean
+  readonly requireSignature?: boolean
   /** Supports Anthropic's thinking-prefix mismatch controls. Overrides model-ID detection. */
-  supportsThinkingBlockBinding: Schema.optional(Schema.Boolean),
-}) {}
-
-export namespace LanguageModelCompatibility {
-  export type Input = LanguageModelCompatibility | ConstructorParameters<typeof LanguageModelCompatibility>[0]
-
-  /** Normalize model/upstream compatibility metadata without projecting requests. */
-  export const make = (input: Input) =>
-    input instanceof LanguageModelCompatibility ? input : new LanguageModelCompatibility(input)
+  readonly supportsThinkingBlockBinding?: boolean
 }
 
 /** What the endpoint accepts for this model, named after models.dev capabilities. Unset keeps the protocol default. */
@@ -241,107 +230,6 @@ export interface ModelCapabilities {
     readonly strict?: boolean
   }
 }
-
-export class LanguageModel<
-  Options extends ProviderOptions = ProviderOptions,
-  Compact extends CompactionOperations | undefined = CompactionOperations | undefined,
-> {
-  declare protected readonly _ProviderOptions: Options
-  readonly id: ModelID
-  readonly provider: ProviderID
-  readonly route: AnyRoute<Compact>
-  readonly options?: ModelOptions
-  readonly capabilities?: ModelCapabilities
-  readonly compatibility?: LanguageModelCompatibility
-
-  constructor(input: LanguageModel.ConstructorInput<Compact>) {
-    this.id = input.id
-    this.provider = input.provider
-    this.route = input.route
-    this.options = input.options
-    this.capabilities = input.capabilities
-    this.compatibility = input.compatibility
-  }
-
-  static make<
-    Options extends ProviderOptions = ProviderOptions,
-    Compact extends CompactionOperations | undefined = CompactionOperations | undefined,
-  >(input: LanguageModel.Input<Compact>) {
-    return new LanguageModel<Options, Compact>({
-      id: ModelID.make(input.id),
-      provider: ProviderID.make(input.provider),
-      route: input.route,
-      // The route's options are a preset under the model's own.
-      options: mergeModelOptions(input.route.options, input.options),
-      capabilities: input.capabilities,
-      compatibility:
-        input.compatibility === undefined ? undefined : LanguageModelCompatibility.make(input.compatibility),
-    })
-  }
-
-  static input<Options extends ProviderOptions, Compact extends CompactionOperations | undefined>(
-    model: LanguageModel<Options, Compact>,
-  ): LanguageModel.ConstructorInput<Compact> {
-    return {
-      id: model.id,
-      provider: model.provider,
-      route: model.route,
-      options: model.options,
-      capabilities: model.capabilities,
-      compatibility: model.compatibility,
-    }
-  }
-
-  static update<Options extends ProviderOptions, Compact extends CompactionOperations | undefined>(
-    model: LanguageModel<Options>,
-    patch: Partial<LanguageModel.Input<Compact>> & { readonly route: AnyRoute<Compact> },
-  ): LanguageModel<Options, Compact>
-  static update<Options extends ProviderOptions, Compact extends CompactionOperations | undefined>(
-    model: LanguageModel<Options, Compact>,
-    patch: Partial<Omit<LanguageModel.Input, "route">> & { readonly route?: undefined },
-  ): LanguageModel<Options, Compact>
-  static update<Options extends ProviderOptions>(
-    model: LanguageModel<Options>,
-    patch: Partial<LanguageModel.Input>,
-  ): LanguageModel<Options>
-  static update<Options extends ProviderOptions>(model: LanguageModel<Options>, patch: Partial<LanguageModel.Input>) {
-    if (Object.keys(patch).length === 0) return model
-    return LanguageModel.make<Options>({
-      ...LanguageModel.input(model),
-      ...patch,
-      route: patch.route ?? model.route,
-    })
-  }
-}
-
-export namespace LanguageModel {
-  export type ConstructorInput<Compact extends CompactionOperations | undefined = CompactionOperations | undefined> = {
-    readonly id: ModelID
-    readonly provider: ProviderID
-    readonly route: AnyRoute<Compact>
-    readonly options?: ModelOptions
-    readonly capabilities?: ModelCapabilities
-    readonly compatibility?: LanguageModelCompatibility
-  }
-
-  export type Input<Compact extends CompactionOperations | undefined = CompactionOperations | undefined> = Omit<
-    ConstructorInput<Compact>,
-    "id" | "provider" | "compatibility"
-  > & {
-    readonly id: string | ModelID
-    readonly provider: string | ProviderID
-    readonly compatibility?: LanguageModelCompatibility.Input
-  }
-}
-
-export type LanguageModelInput = LanguageModel.Input
-
-export type LanguageModelProviderOptions<SelectedModel> =
-  SelectedModel extends LanguageModel<infer Options> ? Options : never
-
-export const LanguageModelSchema = Schema.declare((value): value is LanguageModel => value instanceof LanguageModel, {
-  expected: "LLM.LanguageModel",
-})
 
 // Provider cache lifetime such as "5m", "30m", "1h" or "24h", in models.dev's duration format. It is sent as given;
 // each provider accepts its own set, and omitting it keeps the provider default.

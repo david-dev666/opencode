@@ -11,7 +11,7 @@ import { $ } from "bun"
 import fs from "fs/promises"
 import os from "os"
 import path from "path"
-import { ai, LanguageModel, LLMEvent } from "@opencode/ai/effect"
+import { ai, LLMEvent, Model } from "@opencode/ai/effect"
 import { OpenAIChat } from "@opencode/ai/protocols/openai-chat"
 import { TestLLM } from "@opencode/ai/testing"
 import { Global } from "@opencode/util/global"
@@ -91,7 +91,7 @@ const snapshotLayer = (data: string) =>
 const files = (await $`git ls-files -z -- '*.ts'`.cwd(directory).text()).split("\0").filter(Boolean).slice(0, 50)
 
 const model = SessionRunnerModel.resolved(
-  LanguageModel.make({ id: "bench-model", provider: "test", route: OpenAIChat.route }),
+  Model.make({ type: "chat", id: "bench-model", provider: "test", route: OpenAIChat.route }),
   {
     capabilities: { tools: true, input: ["text"], output: ["text"] },
     limit: { context: 100_000, output: 1_000 },
